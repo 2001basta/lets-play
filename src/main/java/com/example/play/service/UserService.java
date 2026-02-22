@@ -1,9 +1,13 @@
 package com.example.play.service;
 
 import java.util.List;
+import java.util.Optional;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import com.example.play.dto.Response;
 import com.example.play.dto.UserResponse;
 import com.example.play.model.User;
 import com.example.play.repository.UserRepository;
@@ -13,29 +17,52 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
     private final UserRepository userRepository;
 
-    public List<UserResponse> getAllUsers() {
-        return userRepository.findAll()
+    public ResponseEntity<Response<List<UserResponse>>> getAllUsers() {
+
+        List<UserResponse> users = userRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+
+        return ResponseEntity.ok(
+                Response.success(users, "Successfully fetched users")
+        );
     }
 
-    public UserResponse getUserById(String id) {
+    public ResponseEntity<Response<UserResponse>> getUserById(String id) {
 
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Optional<User> optionalUser = userRepository.findById(id);
 
-        return mapToResponse(user);
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Response.error(null, "User not found"));
+        }
+
+        return ResponseEntity.ok(
+                Response.success(
+                        mapToResponse(optionalUser.get()),
+                        "Successfully fetched user"
+                )
+        );
     }
 
-    public void deleteUser(String id) {
+    public ResponseEntity<Response<Void>> deleteUser(String id) {
 
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Optional<User> optionalUser = userRepository.findById(id);
 
-        userRepository.delete(user);
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Response.error(null, "User not found"));
+        }
+
+        userRepository.delete(optionalUser.get());
+
+        return ResponseEntity.ok(
+                Response.success(null, "User deleted successfully")
+        );
     }
 
     private UserResponse mapToResponse(User user) {
@@ -43,6 +70,7 @@ public class UserService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole());
+                user.getRole()
+        );
     }
 }

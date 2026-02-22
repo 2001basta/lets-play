@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.play.dto.LoginRequest;
 import com.example.play.dto.RegisterRequest;
+import com.example.play.dto.Response;
 import com.example.play.model.User;
 import com.example.play.repository.UserRepository;
 import com.example.play.security.JwtService;
@@ -34,11 +35,12 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest request) {
+    public ResponseEntity<Response<String>> register(@RequestBody @Valid RegisterRequest request) {
 
         if (userRepository.findByEmail(request.email()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body("Email already exists");
+                    .body(Response.error(null, "Email already exists"));
+                
         }
 
         User user = new User();
@@ -53,7 +55,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request) {
+    public ResponseEntity<Response<String>> login(@RequestBody @Valid LoginRequest request) {
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -73,6 +75,6 @@ public class AuthController {
 
         String token = jwtService.generateToken(userDetails);
 
-        return ResponseEntity.ok(Map.of("token", token));
+        return ResponseEntity.ok(Response.success(token, "login successfully"));
     }
 }
