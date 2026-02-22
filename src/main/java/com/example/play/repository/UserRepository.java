@@ -1,0 +1,9 @@
+package com.example.play.repository;
+
+import java.util.Optional;
+import com.example.play.model.User;
+import org.springframework.data.mongodb.repository.MongoRepository;  
+
+public interface UserRepository extends MongoRepository<User, String> {
+    Optional<User> findByEmail(String name);
+}
