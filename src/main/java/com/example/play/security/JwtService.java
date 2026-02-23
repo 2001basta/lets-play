@@ -9,12 +9,12 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.stereotype.Service;
+
 import java.security.Key;
 
 @Component
 public class JwtService {
-    private final String SECRET_KEY = "this my secret key";
+    private final String SECRET_KEY = "ZXlKaGJHY2lPZXlKaGJHY2lPaUpJVXpJMU5pSjkuLi4aUpJVXpJMU5pSjkuLi4=";
 
     public String generateToken(UserDetails userDetails) {
 
@@ -44,7 +44,6 @@ public class JwtService {
                 .getBody();
     }
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
-        return Keys.hmacShaKeyFor(keyBytes);
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET_KEY));
     }
 }
