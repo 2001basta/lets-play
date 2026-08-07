@@ -1,14 +1,10 @@
 package com.example.play.service;
 
-import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties.Authentication;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +12,7 @@ import com.example.play.dto.ProductRequest;
 import com.example.play.dto.ProductResponse;
 import com.example.play.dto.Response;
 import com.example.play.model.Product;
+import com.example.play.model.User;
 import com.example.play.repository.ProductRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -43,13 +40,13 @@ public class ProductService {
 
     public ResponseEntity<Response<ProductResponse>> createProduct(ProductRequest request, UserDetails auth) {
 
-        String email = auth.getUsername();
+        String userId = ((User) auth).getId();
 
         Product product = new Product();
         product.setName(request.name());
         product.setDescription(request.description());
         product.setPrice(request.price());
-        product.setUserId(email);
+        product.setUserId(userId);
         productRepository.save(product);
 
         return ResponseEntity.ok(Response.success(mapToResponse(product), "Successfuly"));

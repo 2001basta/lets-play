@@ -1,5 +1,7 @@
 package com.example.play.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,6 +27,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProductController {
     private final ProductService productService;
+
+    @GetMapping
+    public ResponseEntity<Response<List<ProductResponse>>> getAllProducts(){
+        return productService.getAllUsers();
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<Response<ProductResponse>> getProductById(@PathVariable String id){

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>lets-play API tester</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e2129;
+    --border: #2a2e38;
+    --text: #e6e8ec;
+    --muted: #8b909c;
+    --accent: #5b8cff;
+    --ok: #3ecf8e;
+    --err: #ff5c5c;
+    --warn: #f5c451;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  #authStatus { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+  #authStatus b { color: var(--text); }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.admin { background: rgba(245,196,81,.15); color: var(--warn); }
+  .badge.user { background: rgba(91,140,255,.15); color: var(--accent); }
+  button.small { padding: 4px 10px; font-size: 12px; }
+
+  main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    margin: 0 0 12px 0;
+  }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 50px; }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--accent);
+    color: white;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  button.danger { background: var(--err); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row.wrap { flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .tabs button { flex: 1; background: var(--panel-2); color: var(--muted); }
+  .tabs button.active { background: var(--accent); color: white; }
+  .tabpane { display: none; }
+  .tabpane.active { display: block; }
+  .msg { font-size: 12px; margin-top: 8px; padding: 6px 8px; border-radius: 6px; display: none; }
+  .msg.ok { display: block; background: rgba(62,207,142,.12); color: var(--ok); }
+  .msg.err { display: block; background: rgba(255,92,92,.12); color: var(--err); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  td.actions { display: flex; gap: 6px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+
+  #log {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    max-height: 360px;
+    overflow-y: auto;
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .entry { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .entry:last-child { border-bottom: none; }
+  .entry .line1 { display: flex; gap: 8px; align-items: center; }
+  .method { font-weight: 700; }
+  .status { font-weight: 700; padding: 0 6px; border-radius: 4px; }
+  .status.s2 { color: var(--ok); }
+  .status.s4, .status.s5 { color: var(--err); }
+  .entry pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-all; color: var(--muted); }
+  .time { color: var(--muted); font-size: 11px; margin-left: auto; }
+
+  #editModal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  #editModal .panel { width: 360px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>lets-play <span>API tester</span></h1>
+  <div id="authStatus">
+    <span id="authText">not logged in</span>
+    <button class="small secondary" id="logoutBtn" style="display:none">Logout</button>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+    <div class="panel" id="authPanel">
+      <h2>Account</h2>
+      <div class="tabs">
+        <button class="active" data-tab="login">Login</button>
+        <button data-tab="register">Register</button>
+      </div>
+
+      <div class="tabpane active" id="tab-login">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••">
+        <div class="row" style="margin-top:12px">
+          <button id="loginBtn">Login</button>
+        </div>
+        <div class="msg" id="loginMsg"></div>
+      </div>
+
+      <div class="tabpane" id="tab-register">
+        <label>Name</label>
+        <input type="text" id="regName" placeholder="Jane Doe">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="you@example.com">
+        <label>Password (min 6 chars)</label>
+        <input type="password" id="regPassword" placeholder="••••••">
+        <div class="row" style="margin-top:12px">
+          <button id="registerBtn">Register</button>
+        </div>
+        <div class="msg" id="registerMsg"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Create Product</h2>
+      <label>Name</label>
+      <input type="text" id="newName" placeholder="Product name">
+      <label>Description</label>
+      <textarea id="newDescription" placeholder="Optional description"></textarea>
+      <label>Price</label>
+      <input type="number" id="newPrice" placeholder="9.99" step="0.01" min="0">
+      <div class="row" style="margin-top:12px">
+        <button id="createBtn">Create</button>
+      </div>
+      <div class="msg" id="createMsg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Admin (requires ADMIN role)</h2>
+      <button class="secondary" id="loadUsersBtn">Load users</button>
+      <div id="usersTableWrap" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between; margin-bottom:12px">
+        <h2 style="margin:0">Products</h2>
+        <button class="secondary small" id="refreshProductsBtn">Refresh</button>
+      </div>
+      <div id="productsTableWrap"></div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="justify-content:space-between; margin-bottom:12px">
+        <h2 style="margin:0">Request log</h2>
+        <button class="secondary small" id="clearLogBtn">Clear</button>
+      </div>
+      <div id="log"><div class="empty">No requests yet.</div></div>
+    </div>
+  </div>
+</main>
+
+<div id="editModal">
+  <div class="panel">
+    <h2>Edit Product</h2>
+    <input type="hidden" id="editId">
+    <label>Name</label>
+    <input type="text" id="editName">
+    <label>Description</label>
+    <textarea id="editDescription"></textarea>
+    <label>Price</label>
+    <input type="number" id="editPrice" step="0.01" min="0">
+    <div class="row" style="margin-top:12px; justify-content:flex-end">
+      <button class="secondary" id="editCancelBtn">Cancel</button>
+      <button id="editSaveBtn">Save</button>
+    </div>
+    <div class="msg" id="editMsg"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/v1';
+let token = localStorage.getItem('jwt_token') || null;
+
+function decodeJwt(t) {
+  try {
+    const payload = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = payload + '='.repeat((4 - payload.length % 4) % 4);
+    return JSON.parse(atob(padded));
+  } catch (e) {
+    return null;
+  }
+}
+
+function updateAuthUI() {
+  const authText = document.getElementById('authText');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const authPanel = document.getElementById('authPanel');
+  if (token) {
+    const claims = decodeJwt(token);
+    const role = claims && claims.role ? claims.role.replace('ROLE_', '') : '?';
+    const sub = claims ? claims.sub : '?';
+    authText.innerHTML = `<b>${escapeHtml(sub)}</b> <span class="badge ${role.toLowerCase()==='admin'?'admin':'user'}">${escapeHtml(role)}</span>`;
+    logoutBtn.style.display = 'inline-block';
+    authPanel.style.display = 'none';
+  } else {
+    authText.textContent = 'not logged in';
+    logoutBtn.style.display = 'none';
+    authPanel.style.display = 'block';
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function logEntry(method, path, status, body) {
+  const log = document.getElementById('log');
+  const empty = log.querySelector('.empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'entry';
+  const statusClass = status ? `s${String(status)[0]}` : '';
+  const time = new Date().toLocaleTimeString();
+  div.innerHTML = `
+    <div class="line1">
+      <span class="method">${method}</span>
+      <span>${escapeHtml(path)}</span>
+      <span class="status ${statusClass}">${status ?? 'ERR'}</span>
+      <span class="time">${time}</span>
+    </div>
+    <pre>${escapeHtml(typeof body === 'string' ? body : JSON.stringify(body, null, 2))}</pre>
+  `;
+  log.prepend(div);
+}
+
+async function api(method, path, body, useAuth) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (useAuth && token) headers['Authorization'] = `Bearer ${token}`;
+
+  let res, data, text;
+  try {
+    res = await fetch(API + path, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+    text = await res.text();
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+    logEntry(method, path, res.status, data);
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    logEntry(method, path, null, String(e));
+    return { ok: false, status: null, data: String(e) };
+  }
+}
+
+function setMsg(id, text, ok) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
+}
+function clearMsg(id) {
+  const el = document.getElementById(id);
+  el.className = 'msg';
+}
+
+// Tabs
+document.querySelectorAll('.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tabpane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Register
+document.getElementById('registerBtn').addEventListener('click', async () => {
+  clearMsg('registerMsg');
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const { ok, data } = await api('POST', '/auth/register', { name, email, password });
+  if (ok) {
+    setMsg('registerMsg', 'Registered. You can now log in.', true);
+  } else {
+    setMsg('registerMsg', (data && data.message) || 'Registration failed', false);
+  }
+});
+
+// Login
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  clearMsg('loginMsg');
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const { ok, data } = await api('POST', '/auth/login', { email, password });
+  if (ok && data && data.data) {
+    token = data.data;
+    localStorage.setItem('jwt_token', token);
+    updateAuthUI();
+    loadProducts();
+  } else {
+    setMsg('loginMsg', (data && data.message) || 'Login failed', false);
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  token = null;
+  localStorage.removeItem('jwt_token');
+  updateAuthUI();
+});
+
+// Create product
+document.getElementById('createBtn').addEventListener('click', async () => {
+  clearMsg('createMsg');
+  const name = document.getElementById('newName').value.trim();
+  const description = document.getElementById('newDescription').value.trim();
+  const price = parseFloat(document.getElementById('newPrice').value);
+  const { ok, data } = await api('POST', '/products', { name, description, price }, true);
+  if (ok) {
+    setMsg('createMsg', 'Product created.', true);
+    document.getElementById('newName').value = '';
+    document.getElementById('newDescription').value = '';
+    document.getElementById('newPrice').value = '';
+    loadProducts();
+  } else {
+    setMsg('createMsg', (data && data.message) || 'Create failed', false);
+  }
+});
+
+// Products list
+async function loadProducts() {
+  const wrap = document.getElementById('productsTableWrap');
+  const { ok, data } = await api('GET', '/products');
+  if (!ok || !data || !data.data) {
+    wrap.innerHTML = '<div class="empty">Failed to load products.</div>';
+    return;
+  }
+  const products = data.data;
+  if (products.length === 0) {
+    wrap.innerHTML = '<div class="empty">No products yet.</div>';
+    return;
+  }
+  const rows = products.map(p => `
+    <tr>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${escapeHtml(p.description ?? '')}</td>
+      <td>${p.price}</td>
+      <td>${escapeHtml(p.userId ?? '')}</td>
+      <td class="actions">
+        <button class="secondary small" data-edit="${p.id}">Edit</button>
+        <button class="danger small" data-delete="${p.id}">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Name</th><th>Description</th><th>Price</th><th>Owner</th><th>Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  wrap.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => openEdit(products.find(p => p.id === btn.dataset.edit)));
+  });
+  wrap.querySelectorAll('[data-delete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this product?')) return;
+      await api('DELETE', '/products/' + btn.dataset.delete, undefined, true);
+      loadProducts();
+    });
+  });
+}
+document.getElementById('refreshProductsBtn').addEventListener('click', loadProducts);
+
+// Edit modal
+function openEdit(p) {
+  document.getElementById('editId').value = p.id;
+  document.getElementById('editName').value = p.name;
+  document.getElementById('editDescription').value = p.description ?? '';
+  document.getElementById('editPrice').value = p.price;
+  clearMsg('editMsg');
+  document.getElementById('editModal').style.display = 'flex';
+}
+document.getElementById('editCancelBtn').addEventListener('click', () => {
+  document.getElementById('editModal').style.display = 'none';
+});
+document.getElementById('editSaveBtn').addEventListener('click', async () => {
+  const id = document.getElementById('editId').value;
+  const name = document.getElementById('editName').value.trim();
+  const description = document.getElementById('editDescription').value.trim();
+  const price = parseFloat(document.getElementById('editPrice').value);
+  const { ok, data } = await api('PUT', '/products/' + id, { name, description, price }, true);
+  if (ok) {
+    document.getElementById('editModal').style.display = 'none';
+    loadProducts();
+  } else {
+    setMsg('editMsg', (data && data.message) || 'Update failed', false);
+  }
+});
+
+// Admin: users
+document.getElementById('loadUsersBtn').addEventListener('click', async () => {
+  const wrap = document.getElementById('usersTableWrap');
+  const { ok, data } = await api('GET', '/users', undefined, true);
+  if (!ok || !data || !data.data) {
+    wrap.innerHTML = `<div class="empty">${escapeHtml((data && data.message) || 'Failed to load users (admin only).')}</div>`;
+    return;
+  }
+  const users = data.data;
+  const rows = users.map(u => `
+    <tr>
+      <td>${escapeHtml(u.name)}</td>
+      <td>${escapeHtml(u.email)}</td>
+      <td>${escapeHtml(u.role)}</td>
+      <td class="actions"><button class="danger small" data-deluser="${u.id}">Delete</button></td>
+    </tr>
+  `).join('');
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  wrap.querySelectorAll('[data-deluser]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this user?')) return;
+      await api('DELETE', '/users/' + btn.dataset.deluser, undefined, true);
+      document.getElementById('loadUsersBtn').click();
+    });
+  });
+});
+
+document.getElementById('clearLogBtn').addEventListener('click', () => {
+  document.getElementById('log').innerHTML = '<div class="empty">No requests yet.</div>';
+});
+
+updateAuthUI();
+loadProducts();
+</script>
+</body>
+</html>

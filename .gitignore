@@ -1,0 +1,8 @@
+/.idea/uiDesigner.xml
+/target/
+.env
+eps-portal-backend.tar
+logs/
+salary-data/
+build/
+bin/
