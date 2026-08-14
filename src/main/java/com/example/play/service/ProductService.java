@@ -110,13 +110,13 @@ public class ProductService {
 
     private boolean isOwnerOrAdmin(Product product, UserDetails auth) {
 
-        String currentUser = auth.getUsername();
+        String currentUserId = ((User) auth).getId();
 
         boolean isAdmin = auth.getAuthorities()
                 .stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-        return product.getUserId().equals(currentUser) || isAdmin;
+                .map(a -> a.getAuthority().replaceFirst("^ROLE_", ""))
+                .anyMatch(role -> role.equalsIgnoreCase("ADMIN"));
+        return product.getUserId().equals(currentUserId) || isAdmin;
     }
 
     private ProductResponse mapToResponse(Product product) {

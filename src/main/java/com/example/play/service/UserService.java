@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import com.example.play.dto.Response;
@@ -32,7 +33,12 @@ public class UserService {
         );
     }
 
-    public ResponseEntity<Response<UserResponse>> getUserById(String id) {
+    public ResponseEntity<Response<UserResponse>> getUserById(String id, UserDetails currentUser) {
+
+        if (isSelf(id, currentUser)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Response.error(null, "You cannot view your own account through this endpoint"));
+        }
 
         Optional<User> optionalUser = userRepository.findById(id);
 
@@ -49,7 +55,12 @@ public class UserService {
         );
     }
 
-    public ResponseEntity<Response<Void>> deleteUser(String id) {
+    public ResponseEntity<Response<Void>> deleteUser(String id, UserDetails currentUser) {
+
+        if (isSelf(id, currentUser)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Response.error(null, "You cannot delete your own account"));
+        }
 
         Optional<User> optionalUser = userRepository.findById(id);
 
@@ -63,6 +74,10 @@ public class UserService {
         return ResponseEntity.ok(
                 Response.success(null, "User deleted successfully")
         );
+    }
+
+    private boolean isSelf(String id, UserDetails currentUser) {
+        return ((User) currentUser).getId().equals(id);
     }
 
     private UserResponse mapToResponse(User user) {
